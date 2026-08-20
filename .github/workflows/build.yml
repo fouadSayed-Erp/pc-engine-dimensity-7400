@@ -4,39 +4,25 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: false
-
-      - name: Get Real Winlator Source
+      - name: Clone Official Winlator
         run: |
-          rm -rf app gladio vortek gradle
-          rm -f gradlew build.gradle settings.gradle
-          echo "Cloning full Winlator..."
-          git clone --depth 1 https://github.com/brunodev85/winlator.git winlator_src
-          rsync -av --exclude='.git' winlator_src/ ./
-          rm -rf winlator_src
-          git submodule update --init --recursive
-          chmod +x gradlew
-          ls -la | grep gradlew
+          git clone --recursive https://github.com/brunodev85/winlator.git winlator
+          chmod +x winlator/gradlew
+          ls winlator/gradlew
 
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
       - uses: android-actions/setup-android@v3
-
       - name: Setup NDK
         run: |
           sdkmanager --install "ndk;25.1.8937393"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
-
-      - name: Build Accounting APK
-        run: |
-          ./gradlew assembleDebug --stacktrace
-
+      - name: Build APK
+        working-directory: ./winlator
+        run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: PC-Engine-Accounting-Ultra-V2
-          path: app/build/outputs/apk/debug/*.apk
+          path: winlator/app/build/outputs/apk/debug/*.apk
