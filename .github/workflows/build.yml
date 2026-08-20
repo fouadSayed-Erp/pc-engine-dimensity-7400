@@ -7,9 +7,8 @@ jobs:
       - name: Clone Official Winlator
         run: |
           git clone --recursive https://github.com/brunodev85/winlator.git winlator
-          chmod +x winlator/gradlew
-          ls winlator/gradlew
-
+          chmod +x winlator/app/gradlew
+          ls -lh winlator/app/gradlew
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -20,9 +19,9 @@ jobs:
           sdkmanager --install "ndk;25.1.8937393"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
       - name: Build APK
-        working-directory: ./winlator
-        run: ./gradlew assembleDebug
+        working-directory: ./winlator/app
+        run: ./gradlew assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: PC-Engine-Accounting-Ultra-V2
-          path: winlator/app/build/outputs/apk/debug/*.apk
+          path: winlator/app/app/build/outputs/apk/debug/*.apk
