@@ -6,20 +6,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
-          
-      - name: Clone Winlator source if missing
+          submodules: false
+
+      - name: Get Real Winlator Source
         run: |
-          if [ ! -f "./gradlew" ]; then
-            echo "gradlew not found, cloning Winlator..."
-            git clone --depth 1 https://github.com/brunodev85/winlator.git temp_winlator
-            cp -r temp_winlator/* .
-            cp -r temp_winlator/.github . 2>/dev/null || true
-            rm -rf temp_winlator
-          fi
-          git submodule update --init --recursive || true
+          rm -rf app gladio vortek gradle
+          rm -f gradlew build.gradle settings.gradle
+          echo "Cloning full Winlator..."
+          git clone --depth 1 https://github.com/brunodev85/winlator.git winlator_src
+          rsync -av --exclude='.git' winlator_src/ ./
+          rm -rf winlator_src
+          git submodule update --init --recursive
           chmod +x gradlew
-          ls -la
+          ls -la | grep gradlew
 
       - uses: actions/setup-java@v4
         with:
@@ -35,7 +34,6 @@ jobs:
 
       - name: Build Accounting APK
         run: |
-          chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
       - uses: actions/upload-artifact@v4
