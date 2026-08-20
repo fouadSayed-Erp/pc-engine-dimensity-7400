@@ -14,42 +14,28 @@ jobs:
 
       - name: Build Store.exe
         run: |
-          dotnet new winforms -n PCEngineStore -o store-src
-          # Fix for Linux build -> Enable Windows Targeting
-          sed -i 's/<TargetFramework>.*<\/TargetFramework>/<TargetFramework>net8.0-windows<\/TargetFramework><EnableWindowsTargeting>true<\/EnableWindowsTargeting>/g' store-src/PCEngineStore.csproj
+          dotnet new winforms -n PCEngineStore -o store-src --no-restore
+          sed -i '/<OutputType>WinExe/a \    <EnableWindowsTargeting>true</EnableWindowsTargeting>' store-src/PCEngineStore.csproj
           cat store-src/PCEngineStore.csproj
           cat > store-src/Program.cs << 'CSCS'
-          using System;
-          using System.Drawing;
-          using System.Windows.Forms;
+          using System; using System.Drawing; using System.Windows.Forms;
           namespace PCEngineStore {
             static class Program {
               [STAThread] static void Main(){
                 Application.EnableVisualStyles();
-                var f = new Form();
-                f.Text = "PC Engine Store V6 - EXE";
-                f.Width = 950; f.Height = 650;
-                f.BackColor = Color.FromArgb(0,188,212);
-                f.StartPosition = FormStartPosition.CenterScreen;
-                var tabs = new TabControl(); tabs.Dock = DockStyle.Fill;
-                var tab1 = new TabPage("Accounting");
-                var p1 = new FlowLayoutPanel(); p1.Dock = DockStyle.Fill; p1.AutoScroll = true; p1.BackColor = Color.WhiteSmoke;
-                void AddCard(FlowLayoutPanel panel, string name){
-                  var card = new Panel(); card.Width=180; card.Height=120; card.BackColor=Color.White; card.Margin=new Padding(10);
-                  var b = new Button(); b.Text=name; b.Width=160; b.Height=35; b.Top=10; b.Left=10;
-                  b.BackColor = Color.FromArgi(0,188,212); b.ForeColor = Color.White; b.FlatStyle = FlatStyle.Flat;
-                  b.Click+=(s,e)=>{ MessageBox.Show("Installing "+name); };
-                  card.Controls.Add(b); panel.Controls.Add(card);
-                }
-                AddCard(p1,"Excel 2024.5"); AddCard(p1,"Daftra ERP"); AddCard(p1,"QuickBooks"); AddCard(p1,"SAP");
-                tab1.Controls.Add(p1); tabs.TabPages.Add(tab1); f.Controls.Add(tabs);
-                Application.Run(f);
+                var f=new Form(){Text="PC Engine Store V6 - EXE",Width=950,Height=650,BackColor=Color.FromArgb(0,188,212),StartPosition=FormStartPosition.CenterScreen;
+                var tabs=new TabControl(){Dock=DockStyle.Fill};
+                var tab1=new TabPage("Accounting");
+                var p1=new FlowLayoutPanel(){Dock=DockStyle.Fill,AutoScroll=true,BackColor=Color.WhiteSmoke};
+                void AddCard(FlowLayoutPanel p,string n){var c=new Panel(){Width=180,Height=120,BackColor=Color.White,Margin=new Padding(10)};var b=new Button(){Text=n,Width=160,Height=35,Top=10,Left=10,BackColor=Color.FromArgi(0,188,212),ForeColor=Color.White,FlatSytle=FlatStyle.Flat};b.Click+=(s e)->MessageBox.Show("Installing "+n);c.Controls.Add(b);p.Controls.Add(c);}
+                AddCard(p1,"Excel 2024.5");AddCard(p1,"Daftra ERP");AddCard(p1,"QuickBooks");AddCard(p1,"SAP");
+                tab1.Controls.Add(p1);tabs.TabPages.Add(tab1);f.Controls.Add(tabs);Application.Run(f);
               }
             }
           }
           CSCS
-          dotnet restore store-src -p:EnableWindowsTargeting=true
-          dotnet publish store-src -c Release -r win-x86 --self-contained false -p:EnableWindowsTargeting=true -o store-exe
+          dotnet restore store-src/PCEngineStore.csproj -p:EnableWindowsTargeting=true
+          dotnet publish store-src/PCEngineStore.csproj -c Release -r win-x86 --self-contained false -p:EnableWindowsTargeting=true -o store-exe
           ls -lh store-exe/
 
       - name: Inject into Windows System Files
@@ -65,21 +51,17 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
       - name: Setup Android
         uses: android-actions/setup-android@v3
-
       - name: Setup NDK
         run: |
           sdkmanager --install "ndk;25.1.8937393"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
-
       - name: Build APK
         working-directory: ./winlator/app
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
-
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
