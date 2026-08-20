@@ -1,4 +1,4 @@
-name: Build PC Engine V4 Pro Max Integrated
+name: Build PC Engine V5 System Integrated
 on: [workflow_dispatch]
 jobs:
   build:
@@ -6,35 +6,17 @@ jobs:
     steps:
       - name: Clone Winlator
         run: git clone --recursive https://github.com/brunodev85/winlator.git winlator
-      - name: Full Integrated Build
+      - name: Integrate System
         run: |
           cd winlator/app
-          # App Name
-          sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">PC Engine V4 Max<\/string>/g' app/src/main/res/values/strings.xml
-          # Liquid Glass Android Theme
+          sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">PC Engine V5<\/string>/g' app/src/main/res/values/strings.xml || true
           mkdir -p app/src/main/res/drawable
           cat > app/src/main/res/drawable/liquid_glass_bg.xml << 'BG'
           <?xml version="1.0" encoding="utf-8"?>
           <shape xmlns:android="http://schemas.android.com/apk/res/android"><gradient android:angle="135" android:startColor="#FF00BCD4" android:centerColor="#FF2196F3" android:endColor="#FF00E5FF" type="linear"/></shape>
           BG
-          cat > app/src/main/res/values/themes_liquid.xml << 'THEME'
-          <?xml version="1.0" encoding="utf-8"?><resources><style name="Theme.PCEngine.V4" parent="Theme.MaterialComponents.DayNight.NoActionBar"><item name="android:windowBackground">@drawable/liquid_glass_bg</item><item name="android:statusBarColor">@android:color/transparent</item><item name="colorPrimary">#FF00BCD4</item></style></resources>
-          THEME
-          sed -i 's/android:theme="[^"]*"/android:theme="@style\/Theme.PCEngine.V4"/g' app/src/main/AndroidManifest.xml || true
-          # Integrated Store Files - copy to assets to be included in Windows FS
-          mkdir -p app/src/main/assets/pc-engine-store/themes
-          echo "Liquid Glass Windows Theme + Icons + Taskbar" > app/src/main/assets/pc-engine-store/README.txt
-          # Store Activity Integrated
-          DIR=$(find app/src/main/java -type d -name "winlator" | head -1)
-          cat > $DIR/PCEngineStoreActivity.java << 'JAVA'
-          package com.winlator; import android.app.Activity; import android.os.Bundle; import android.widget.*; import android.view.*; public class PCEngineStoreActivity extends Activity {
-            @Override protected void onCreate(Bundle b){ super.onCreate(b);
-              LinearLayout l = new LinearLayout(this); l.setOrientation(1); l.setPadding(30,80,30,30);
-              TextView t = new TextView(this); t.setText("PC Engine Store V4 - Integrated\n\nAccounting: Excel, QuickBooks, SAP, Daftra\nDrivers: WiFi, GPU, Audio, System\nBrowsers: Chrome, Firefox, Terminal, WinRAR"); t.setTextSize(18); l.addView(t);
-              setContentView(l);
-            }
-          }
-          JAVA
+          mkdir -p app/src/main/assets/pc-engine-store
+          echo "<html dir='rtl'><h1>PC Engine Store V5 Integrated</h1></html>" > app/src/main/assets/pc-engine-store/PC_Engine_Store.html
       - uses: actions/setup-java@v4
         with: {java-version: '17', distribution: 'temurin'}
       - uses: android-actions/setup-android@v3
@@ -49,5 +31,5 @@ jobs:
           ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: PC-Engine-V4-Pro-Max-Integrated
+          name: PC-Engine-V5-System-Integrated
           path: winlator/app/app/build/outputs/apk/debug/*.apk
