@@ -6,40 +6,94 @@ jobs:
     steps:
       - name: Clone Winlator
         run: git clone --recursive https://github.com/brunodev85/winlator.git winlator
-      - name: Setup dotnet
+
+      - name: Setup dotnet 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Build Store EXE
+
+      - name: Build Store.exe
         run: |
           dotnet new winforms -n PCEngineStore -o store-src
-          printf '%s\n' 'using System; using System.Drawing; using System.Windows.Forms; namespace PCEngineStore { static class Program { [STAThread] static void Main(){ Application.EnableVisualStyles(); var f=new Form(){Text="PC Engine Store V6 EXE",Width=900,Height=600,BackColor=Color.FromArgb(0,188,212)}; var b=new Button(){Text="Install Excel 2024.5",Width=200,Height=50,Top=20,Left=20,BackColor=Color.FromArgb(0,188,212),ForeColor=Color.White}; b.Click+=(s,e)=>MessageBox.Show("Installing Excel"); f.Controls.Add(b); Application.Run(f); } } }' > store-src/Program.cs
+          cat > store-src/Program.cs << 'CSCS'
+          using System;
+          using System.Drawing;
+          using System.Windows.Forms;
+          namespace PCEngineStore {
+            static class Program {
+              [STAThread] static void Main(){
+                Application.EnableVisualStyles();
+                var f = new Form();
+                f.Text = "PC Engine Store V6 - EXE";
+                f.Width = 950;
+                f.Height = 650;
+                f.BackColor = Color.FromArgb(0,188,212);
+                f.StartPosition = FormStartPosition.CenterScreen;
+                var tabs = new TabControl();
+                tabs.Dock = DockStyle.Fill;
+                var tab1 = new TabPage("Accounting");
+                var p1 = new FlowLayoutPanel();
+                p1.Dock = DockStyle.Fill;
+                p1.AutoScroll = true;
+                p1.BackColor = Color.WhiteSmoke;
+                void AddCard(FlowLayoutPanel panel, string name){
+                  var card = new Panel();
+                  card.Width = 180; card.Height = 120; card.BackColor = Color.White;
+                  card.Margin = new Padding(10);
+                  var b = new Button();
+                  b.Text = name; b.Width = 160; b.Height = 35;
+                  b.Top = 10; b.Left = 10;
+                  b.BackColor = Color.FromArgb(0,188,212);
+                  b.ForeColor = Color.White;
+                  b.FlatStyle = FlatStyle.Flat;
+                  b.Click += (s,e)=>{ MessageBox.Show("Installing " + name); };
+                  card.Controls.Add(b);
+                  panel.Controls.Add(card);
+                }
+                AddCard(p1,"Excel 2024.5"); AddCard(p1,"Daftra ERP"); AddCard(p1,"QuickBooks"); AddCard(p1,"SAP");
+                tab1.Controls.Add(p1);
+                tabs.TabPages.Add(tab1);
+                f.Controls.Add(tabs);
+                Application.Run(f);
+              }
+            }
+          }
+          CSCS
           dotnet publish store-src -c Release -r win-x86 --self-contained false -o store-exe
-          ls store-exe/
-      - name: Inject EXE into Windows System
+          ls -lh store-exe/
+
+      - name: Inject into Windows System Files
         run: |
           cd winlator/app
           sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">PC Engine V6 EXE<\/string>/g' app/src/main/res/values/strings.xml || true
           mkdir -p app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store
-          cp../../store-exe/*.exe app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/ || true
-          ls app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/
-      - uses: actions/setup-java@v4
+          cp ../../store-exe/PCEngineStore.exe app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/ || cp ../../store-exe/*.exe app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/ || true
+          ls -lh app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-      - uses: android-actions/setup-android@v3
+
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
       - name: Setup NDK
         run: |
           sdkmanager --install "ndk;25.1.8937393"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
+
       - name: Build APK
-        working-directory:./winlator/app
+        working-directory: ./winlator/app
         run: |
           chmod +x gradlew
-         ./gradlew assembleDebug
-      - uses: actions/upload-artifact@v4
+          ./gradlew assembleDebug
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
         with:
-          name: PC-Engine-V6-EXE
+          name: PC-Engine-V6-EXE-Fixed
           path: |
             winlator/app/app/build/outputs/apk/debug/*.apk
             store-exe/*
