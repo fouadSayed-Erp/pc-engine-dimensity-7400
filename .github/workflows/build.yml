@@ -1,4 +1,4 @@
-name: Build PC Engine V5 System Integrated
+name: Build PC Engine V6 Store EXE
 on: [workflow_dispatch]
 jobs:
   build:
@@ -6,17 +6,80 @@ jobs:
     steps:
       - name: Clone Winlator
         run: git clone --recursive https://github.com/brunodev85/winlator.git winlator
-      - name: Integrate System
+
+      - name: Setup dotnet 8 for Store.exe
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Store.exe (Windows EXE)
+        run: |
+          dotnet new winforms -n PCEngineStore -o store-src
+          cat > store-src/Program.cs << 'CS'
+          using System; using System.Drawing; using System.Windows.Forms;
+          namespace PCEngineStore {
+            static class Program {
+              [STAThread] static void Main(){
+                Application.EnableVisualStyles();
+                Form f = new Form();
+                f.Text = "PC Engine Store V6 - EXE System Integrated";
+                f.Size = new Size(950,650);
+                f.StartPosition = FormStartPosition.CenterScreen;
+                f.BackColor = Color.FromArgb(0,188,212);
+
+                TabControl tabs = new TabControl(){ Dock=DockStyle.Fill };
+
+                TabPage tab1 = new TabPage("📊 محاسبة");
+                FlowLayoutPanel p1 = new FlowLayoutPanel(){ Dock=DockStyle.Fill, AutoScroll=true, BackColor=Color.WhiteSmoke };
+                void AddCard(FlowLayoutPanel panel, string name, string ver){
+                  Panel card = new Panel(){ Size=new Size(180,120), BackColor=Color.White, Margin=new Padding(10), BorderStyle=BorderStyle.FixedSingle };
+                  Label l1 = new Label(){ Text=name, Location=new Point(10,10), AutoSize=true, Font=new Font("Tahoma",10,FontStyle.Bold) };
+                  Label l2 = new Label(){ Text=ver, Location=new Point(10,35), AutoSize=true, ForeColor=Color.Gray };
+                  Button b = new Button(){ Text="Install", Location=new Point(10,65), Size=new Size(150,35), BackColor=Color.FromArgb(0,188,212), ForeColor=Color.White, FlatStyle=FlatStyle.Flat };
+                  b.FlatAppearance.BorderSize=0;
+                  b.Click += (s,e)=>{ MessageBox.Show($"جاري تثبيت {name}...\nسيتم التثبيت في C:\\Program Files\\{name}","PC Engine Store"); };
+                  card.Controls.AddRange(new Control[]{l1,l2,b});
+                  panel.Controls.Add(card);
+                }
+                AddCard(p1,"Excel 2024.5","Accounting"); AddCard(p1,"دفترة ERP","Cloud"); AddCard(p1,"QuickBooks","v2024.1"); AddCard(p1,"SAP Business","v2024");
+                tab1.Controls.Add(p1);
+
+                TabPage tab2 = new TabPage("🔧 تعريفات النظام");
+                FlowLayoutPanel p2 = new FlowLayoutPanel(){ Dock=DockStyle.Fill, AutoScroll=true, BackColor=Color.WhiteSmoke };
+                AddCard(p2,"WiFi Driver","v1.14.32"); AddCard(p2,"GPU Driver","v31.0.220"); AddCard(p2,"Audio Driver","v4.2.8"); AddCard(p2,"System Chipset","v2024");
+                tab2.Controls.Add(p2);
+
+                TabPage tab3 = new TabPage("🌐 برامج PC");
+                FlowLayoutPanel p3 = new FlowLayoutPanel(){ Dock=DockStyle.Fill, AutoScroll=true, BackColor=Color.WhiteSmoke };
+                AddCard(p3,"Google Chrome","Browser"); AddCard(p3,"Firefox","Browser"); AddCard(p3,"Terminal","Console"); AddCard(p3,"WinRAR","Archive");
+                tab3.Controls.Add(p3);
+
+                tabs.TabPages.AddRange(new TabPage[]{tab1,tab2,tab3});
+                f.Controls.Add(tabs);
+                Application.Run(f);
+              }
+            }
+          }
+          CS
+          dotnet publish store-src -c Release -r win-x86 --self-contained false -p:PublishSingleFile=true -o store-exe
+          ls -lh store-exe/
+
+      - name: Inject EXE into Windows System Files
         run: |
           cd winlator/app
-          sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">PC Engine V5<\/string>/g' app/src/main/res/values/strings.xml || true
-          mkdir -p app/src/main/res/drawable
-          cat > app/src/main/res/drawable/liquid_glass_bg.xml << 'BG'
-          <?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android"><gradient android:angle="135" android:startColor="#FF00BCD4" android:centerColor="#FF2196F3" android:endColor="#FF00E5FF" type="linear"/></shape>
-          BG
-          mkdir -p app/src/main/assets/pc-engine-store
-          echo "<html dir='rtl'><h1>PC Engine Store V5 Integrated</h1></html>" > app/src/main/assets/pc-engine-store/PC_Engine_Store.html
+          sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">PC Engine V6 Store EXE<\/string>/g' app/src/main/res/values/strings.xml || true
+          mkdir -p "app/src/main/assets/imagefs_patches/Program Files/PC Engine Store"
+          mkdir -p "app/src/main/assets/imagefs_patches/Users/Public/Desktop"
+          mkdir -p "app/src/main/assets/imagefs_patches/ProgramData/PC-Engine"
+          cp../../store-exe/PCEngineStore.exe "app/src/main/assets/imagefs_patches/Program Files/PC Engine Store/PC Engine Store.exe" || cp../../store-exe/store-src.exe "app/src/main/assets/imagefs_patches/Program Files/PC Engine Store/PC Engine Store.exe"
+          echo "Windows Registry Editor Version 5.00
+          [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
+          \"ColorizationColor\"=dword:4cc4b5ff
+          \"EnableAeroPeek\"=dword:00000001
+          [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize]
+          \"EnableTransparency\"=dword:00000001" > "app/src/main/assets/imagefs_patches/ProgramData/PC-Engine/LiquidGlass.reg"
+          echo "Store.exe is now part of Windows C:\\Program Files\\"
+
       - uses: actions/setup-java@v4
         with: {java-version: '17', distribution: 'temurin'}
       - uses: android-actions/setup-android@v3
@@ -25,11 +88,13 @@ jobs:
           sdkmanager --install "ndk;25.1.8937393"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
       - name: Build APK
-        working-directory: ./winlator/app
+        working-directory:./winlator/app
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+         ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: PC-Engine-V5-System-Integrated
-          path: winlator/app/app/build/outputs/apk/debug/*.apk
+          name: PC-Engine-V6-Store-EXE
+          path: |
+            winlator/app/app/build/outputs/apk/debug/*.apk
+            store-exe/*.exe
