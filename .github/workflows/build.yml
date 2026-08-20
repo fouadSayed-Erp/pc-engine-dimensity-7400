@@ -7,20 +7,37 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          
+      - name: Clone Winlator source if missing
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "gradlew not found, cloning Winlator..."
+            git clone --depth 1 https://github.com/brunodev85/winlator.git temp_winlator
+            cp -r temp_winlator/* .
+            cp -r temp_winlator/.github . 2>/dev/null || true
+            rm -rf temp_winlator
+          fi
+          git submodule update --init --recursive || true
+          chmod +x gradlew
+          ls -la
+
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+
       - uses: android-actions/setup-android@v3
-      - name: Setup NDK + Accounting Runtimes
+
+      - name: Setup NDK
         run: |
           sdkmanager --install "ndk;25.1.8937393"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
-          echo "Box64 + Wine ready for Office 2021, SAP, QuickBooks, Odoo, Daftra"
+
       - name: Build Accounting APK
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
+
       - uses: actions/upload-artifact@v4
         with:
           name: PC-Engine-Accounting-Ultra-V2
