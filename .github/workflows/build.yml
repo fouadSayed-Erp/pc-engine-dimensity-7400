@@ -1,0 +1,21 @@
+name: Build Dimensity APK
+on: [workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {submodules: recursive}
+      - uses: actions/setup-java@v4
+        with: {java-version: '17', distribution: 'temurin'}
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager --install "ndk;25.1.8937393"
+      - run: |
+          echo "BOX64_DYNAREC_STRONGMEM=0" > app/src/main/assets/box64rc
+          echo "GALLIUM_DRIVER=virpipe" >> app/src/main/assets/box64rc
+          echo "MESA_LOADER_DRIVER_OVERRIDE=zink" >> app/src/main/assets/box64rc
+      - run: chmod +x gradlew && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: APK-Dimensity7400-Ultra
+          path: app/build/outputs/apk/debug/*.apk
