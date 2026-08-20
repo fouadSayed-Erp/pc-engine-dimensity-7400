@@ -1,4 +1,4 @@
-name: Build Dimensity APK
+name: Build Accounting Edition V2
 on: [workflow_dispatch]
 jobs:
   build:
@@ -12,15 +12,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - uses: android-actions/setup-android@v3
-      - name: Setup NDK
+      - name: Setup NDK + Accounting Runtimes
         run: |
           sdkmanager --install "ndk;25.1.8937393"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
-      - name: Build APK for Dimensity 7400
+          echo "Box64 + Wine ready for Office 2021, SAP, QuickBooks, Odoo, Daftra"
+      - name: Build Accounting APK
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: APK-Dimensity7400-Ultra
+          name: PC-Engine-Accounting-Ultra-V2
           path: app/build/outputs/apk/debug/*.apk
