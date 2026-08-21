@@ -1,0 +1,130 @@
+name: Build PC Engine V6 Liquid Glass
+on: [workflow_dispatch, push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone Winlator
+        run: git clone --recursive https://github.com/brunodev85/winlator.git winlator
+      - name: Setup dotnet 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build Store.exe LIQUID GLASS
+        run: |
+          dotnet new winforms -n PCEngineStore -o store-src --no-restore
+          cat > store-src/PCEngineStore.csproj << 'CSPROJ'
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>WinExe</OutputType>
+              <TargetFramework>net8.0-windows</TargetFramework>
+              <EnableWindowsTargeting>true</EnableWindowsTargeting>
+              <UseWindowsForms>true</UseWindowsForms>
+              <ImplicitUsings>enable</ImplicitUsings>
+              <Nullable>enable</Nullable>
+            </PropertyGroup>
+          </Project>
+          CSPROJ
+          cat > store-src/Program.cs << 'CSCS'
+          using System; using System.Drawing; using System.Drawing.Drawing2D; using System.Runtime.InteropServices; using System.Windows.Forms;
+          namespace PCEngineStore {
+            public class GlassPanel : Panel {
+              public int CornerRadius = 18;
+              public GlassPanel(){ DoubleBuffered = true; BackColor = Color.Transparent; }
+              protected override void OnPaint(PaintEventArgs e){
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                Rectangle rect = new Rectangle(0,0,Width-1,Height-1);
+                using (GraphicsPath path = new GraphicsPath()){
+                  int d = CornerRadius*2;
+                  path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+                  path.AddArc(rect.Right-d, rect.Y, d, d, 270, 90);
+                  path.AddArc(rect.Right-d, rect.Bottom-d, d, d, 0, 90);
+                  path.AddArc(rect.X, rect.Bottom-d, d, d, 90, 90);
+                  path.CloseFigure();
+                  using (SolidBrush b = new SolidBrush(Color.FromArgb(160,255,255,255))) e.Graphics.FillPath(b, path);
+                  using (Pen p = new Pen(Color.FromArgb(90,255,255,255),1.2f)) e.Graphics.DrawPath(p, path);
+                }
+                base.OnPaint(e);
+              }
+            }
+            static class Program {
+              [DllImport("dwmapi.dll")] static extern int DwmExtendFrameIntoClientArea(IntPtr hWnd, ref MARGINS m);
+              [DllImport("user32.dll")] static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
+              [StructLayout(LayoutKind.Sequential)] struct MARGINS { public int left,right,top,bottom; }
+              [StructLayout(LayoutKind.Sequential)] struct WindowCompositionAttributeData { public int Attribute; public IntPtr Data; public int SizeOfData; }
+              enum AccentState { ACCENT_ENABLE_ACRYLICBLURBEHIND = 4 }
+              [StructLayout(LayoutKind.Sequential)] struct AccentPolicy { public AccentState AccentState; public int AccentFlags; public int GradientColor; public int AnimationId; }
+              static void EnableLiquidGlass(Form f){
+                try{
+                  var margins = new MARGINS { left=-1,right=-1,top=-1,bottom=-1 };
+                  DwmExtendFrameIntoClientArea(f.Handle, ref margins);
+                  var accent = new AccentPolicy(); accent.AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND;
+                  accent.GradientColor = (20<<24)|(0xD4<<16)|(0xBC<<8)|0x00;
+                  int size = Marshal.SizeOf(accent); IntPtr ptr = Marshal.AllocHGlobal(size);
+                  Marshal.StructureToPtr(accent, ptr, false);
+                  var data = new WindowCompositionAttributeData(); data.Attribute=19; data.SizeOfData=size; data.Data=ptr;
+                  SetWindowCompositionAttribute(f.Handle, ref data); Marshal.FreeHGlobal(ptr);
+                } catch{}
+              }
+              [STAThread] static void Main(){
+                Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+                Form f = new Form(); f.Text="PC Engine Store V6 - Liquid Glass"; f.Width=1050; f.Height=700;
+                f.BackColor=Color.FromArgb(15,0,188,212); f.StartPosition=FormStartPosition.CenterScreen;
+                f.Load += (s,e)=> EnableLiquidGlass(f);
+                GlassPanel header = new GlassPanel(); header.Height=70; header.Dock=DockStyle.Top; header.CornerRadius=0;
+                Label title = new Label(); title.Text="PC Engine Store V6  •  Liquid Glass Edition"; title.Font=new Font("Segoe UI",14,FontStyle.Bold);
+                title.ForeColor=Color.FromArgb(0,80,90); title.AutoSize=true; title.Location=new Point(25,20); header.Controls.Add(title); f.Controls.Add(header);
+                TabControl tabs = new TabControl(); tabs.Dock=DockStyle.Fill; tabs.Top=70; tabs.Appearance=TabAppearance.FlatButtons; tabs.ItemSize=new Size(0,1); tabs.SizeMode=TabSizeMode.Fixed;
+                TabPage tab1 = new TabPage("Accounting"); tab1.BackColor=Color.FromArgb(20,0,188,212);
+                FlowLayoutPanel p1 = new FlowLayoutPanel(); p1.Dock=DockStyle.Fill; p1.AutoScroll=true; p1.BackColor=Color.Transparent; p1.Padding=new Padding(20);
+                void AddCard(string name, string ver){
+                  GlassPanel card = new GlassPanel(); card.Width=210; card.Height=145; card.Margin=new Padding(12); card.CornerRadius=18;
+                  Label l1 = new Label(); l1.Text=name; l1.Font=new Font("Segoe UI",11,FontStyle.Bold); l1.Location=new Point(15,15); l1.AutoSize=true; l1.BackColor=Color.Transparent;
+                  Label l2 = new Label(); l2.Text=ver; l2.Font=new Font("Segoe UI",8); l2.ForeColor=Color.DimGray; l2.Location=new Point(15,40); l2.AutoSize=true; l2.BackColor=Color.Transparent;
+                  Button b = new Button(); b.Text="Install"; b.Width=180; b.Height=36; b.Top=95; b.Left=15; b.FlatStyle=FlatStyle.Flat; b.FlatAppearance.BorderSize=0;
+                  b.BackColor=Color.FromArgb(0,188,212); b.ForeColor=Color.White; b.Font=new Font("Segoe UI",9,FontStyle.Bold);
+                  b.Click += (ss,ee)=> MessageBox.Show("Installing "+name,"Liquid Glass",MessageBoxButtons.OK,MessageBoxIcon.Information);
+                  card.Controls.Add(l1); card.Controls.Add(l2); card.Controls.Add(b); p1.Controls.Add(card);
+                }
+                AddCard("Excel 2024.5","Microsoft • v2405"); AddCard("Daftra ERP","Cloud • Invoicing"); AddCard("QuickBooks","Intuit • 2024");
+                AddCard("SAP Business","Enterprise • S/4HANA"); AddCard("Tally Prime","Gold • v4.0"); AddCard("Zoho Books","Zoho • Online");
+                tab1.Controls.Add(p1); tabs.TabPages.Add(tab1); f.Controls.Add(tabs); f.Controls.SetChildIndex(header,0); Application.Run(f);
+              }
+            }
+          }
+          CSCS
+          dotnet restore store-src/PCEngineStore.csproj -p:EnableWindowsTargeting=true
+          dotnet publish store-src/PCEngineStore.csproj -c Release -r win-x86 --self-contained false -p:EnableWindowsTargeting=true -o store-exe
+          ls -lh store-exe/
+      - name: Inject Liquid Glass EXE
+        run: |
+          cd winlator/app
+          mkdir -p "app/src/main/assets/imagefs_patches/home/xuser/.wine/drive_c/Program Files/PC_Engine_Store"
+          cp ../../store-exe/PCEngineStore.exe "app/src/main/assets/imagefs_patches/home/xuser/.wine/drive_c/Program Files/PC_Engine_Store/" || true
+          cp ../../store-exe/*.dll "app/src/main/assets/imagefs_patches/home/xuser/.wine/drive_c/Program Files/PC_Engine_Store/" || true
+          mkdir -p "app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store"
+          cp ../../store-exe/* "app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/" || true
+          sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">PC Engine V6 Liquid Glass<\/string>/g' app/src/main/res/values/strings.xml || true
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+      - name: Setup NDK
+        run: |
+          sdkmanager --install "ndk;25.1.8937393"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.1.8937393" >> $GITHUB_ENV
+      - name: Build APK
+        working-directory: ./winlator/app
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - name: Upload Liquid Glass
+        uses: actions/upload-artifact@v4
+        with:
+          name: PC-Engine-V6-Liquid-Glass
+          path: |
+            winlator/app/app/build/outputs/apk/debug/*.apk
+            store-exe/*
