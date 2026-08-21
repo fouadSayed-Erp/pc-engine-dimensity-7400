@@ -15,35 +15,95 @@ jobs:
       - name: Build Store.exe
         run: |
           dotnet new winforms -n PCEngineStore -o store-src --no-restore
-          sed -i '/<OutputType>WinExe/a \    <EnableWindowsTargeting>true</EnableWindowsTargeting>' store-src/PCEngineStore.csproj
-          cat store-src/PCEngineStore.csproj
+          cat > store-src/PCEngineStore.csproj << 'CSPROJ'
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>WinExe</OutputType>
+              <TargetFramework>net8.0-windows</TargetFramework>
+              <EnableWindowsTargeting>true</EnableWindowsTargeting>
+              <UseWindowsForms>true</UseWindowsForms>
+              <ImplicitUsings>enable</ImplicitUsings>
+              <Nullable>enable</Nullable>
+            </PropertyGroup>
+          </Project>
+          CSPROJ
           cat > store-src/Program.cs << 'CSCS'
-          using System; using System.Drawing; using System.Windows.Forms;
-          namespace PCEngineStore {
-            static class Program {
-              [STAThread] static void Main(){
-                Application.EnableVisualStyles();
-                var f=new Form(){Text="PC Engine Store V6 - EXE",Width=950,Height=650,BackColor=Color.FromArgb(0,188,212),StartPosition=FormStartPosition.CenterScreen;
-                var tabs=new TabControl(){Dock=DockStyle.Fill};
-                var tab1=new TabPage("Accounting");
-                var p1=new FlowLayoutPanel(){Dock=DockStyle.Fill,AutoScroll=true,BackColor=Color.WhiteSmoke};
-                void AddCard(FlowLayoutPanel p,string n){var c=new Panel(){Width=180,Height=120,BackColor=Color.White,Margin=new Padding(10)};var b=new Button(){Text=n,Width=160,Height=35,Top=10,Left=10,BackColor=Color.FromArgi(0,188,212),ForeColor=Color.White,FlatSytle=FlatStyle.Flat};b.Click+=(s e)->MessageBox.Show("Installing "+n);c.Controls.Add(b);p.Controls.Add(c);}
-                AddCard(p1,"Excel 2024.5");AddCard(p1,"Daftra ERP");AddCard(p1,"QuickBooks");AddCard(p1,"SAP");
-                tab1.Controls.Add(p1);tabs.TabPages.Add(tab1);f.Controls.Add(tabs);Application.Run(f);
+          using System;
+          using System.Drawing;
+          using System.Windows.Forms;
+          namespace PCEngineStore
+          {
+              static class Program
+              {
+                  [STAThread]
+                  static void Main()
+                  {
+                      Application.EnableVisualStyles();
+                      Application.SetCompatibleTextRenderingDefault(false);
+                      Form f = new Form();
+                      f.Text = "PC Engine Store V6 - EXE";
+                      f.Width = 950;
+                      f.Height = 650;
+                      f.BackColor = Color.FromArgb(0, 188, 212);
+                      f.StartPosition = FormStartPosition.CenterScreen;
+
+                      TabControl tabs = new TabControl();
+                      tabs.Dock = DockStyle.Fill;
+
+                      TabPage tab1 = new TabPage("Accounting");
+                      FlowLayoutPanel p1 = new FlowLayoutPanel();
+                      p1.Dock = DockStyle.Fill;
+                      p1.AutoScroll = true;
+                      p1.BackColor = Color.WhiteSmoke;
+
+                      Button b1 = new Button();
+                      b1.Text = "Excel 2024.5";
+                      b1.Width = 180;
+                      b1.Height = 50;
+                      b1.Margin = new Padding(10);
+                      b1.BackColor = Color.FromArgb(0, 188, 212);
+                      b1.ForeColor = Color.White;
+                      b1.Click += (s, e) => { MessageBox.Show("Installing Excel"); };
+                      p1.Controls.Add(b1);
+
+                      Button b2 = new Button();
+                      b2.Text = "Daftra ERP";
+                      b2.Width = 180;
+                      b2.Height = 50;
+                      b2.Margin = new Padding(10);
+                      b2.BackColor = Color.FromArgb(0, 188, 212);
+                      b2.ForeColor = Color.White;
+                      b2.Click += (s, e) => { MessageBox.Show("Installing Daftra"); };
+                      p1.Controls.Add(b2);
+
+                      Button b3 = new Button();
+                      b3.Text = "QuickBooks";
+                      b3.Width = 180;
+                      b3.Height = 50;
+                      b3.Margin = new Padding(10);
+                      b3.Click += (s, e) => { MessageBox.Show("Installing QB"); };
+                      p1.Controls.Add(b3);
+
+                      tab1.Controls.Add(p1);
+                      tabs.TabPages.Add(tab1);
+                      f.Controls.Add(tabs);
+                      Application.Run(f);
+                  }
               }
-            }
           }
           CSCS
+          cat store-src/PCEngineStore.csproj
           dotnet restore store-src/PCEngineStore.csproj -p:EnableWindowsTargeting=true
           dotnet publish store-src/PCEngineStore.csproj -c Release -r win-x86 --self-contained false -p:EnableWindowsTargeting=true -o store-exe
           ls -lh store-exe/
+          file store-exe/*.exe
 
       - name: Inject into Windows System Files
         run: |
           cd winlator/app
-          sed -i 's/<string name="app_name">.*<\/string><string name="app_name">PC Engine V6 EXE<\/string>/g' app/src/main/res/values/strings.xml || true
+          sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">PC Engine V6 EXE<\/string>/g' app/src/main/res/values/strings.xml || true
           mkdir -p app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store
-          cp ../../.store-exe/PCEngineStore.exe app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/ || cp ../../.store-exe/*.exe app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/ || true
+          cp ../../store-exe/PCEngineStore.exe app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/ || cp ../../store-exe/*.exe app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/ || true
           ls -lh app/src/main/assets/imagefs_patches/Program_Files/PC_Engine_Store/
 
       - name: Setup Java
